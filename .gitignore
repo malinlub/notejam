@@ -54,5 +54,5 @@ bower_components
 
 #terraform
 **/.terraform/*
-*.tfstate
+*.tfstate*
 *.tfvars
