@@ -20,6 +20,14 @@ DATABASES = {
         'PASSWORD': '2jyLdYOkTJRSDdXFgmzv',
         'HOST': 'notejamdbcluster.cluster-ct6ebwghx7pw.us-west-2.rds.amazonaws.com',
         'PORT': '3306',
+    },
+    'sqlite': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': 'notejam.db',
+        'USER': '',
+        'PASSWORD': '',
+        'HOST': '',
+        'PORT': '',
     }
 }
 
