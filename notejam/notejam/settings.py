@@ -2,7 +2,7 @@ import os
 
 DEBUG = True
 TEMPLATE_DEBUG = DEBUG
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 PROJECT_DIR = "{}/../".format(os.path.dirname(__file__))
 
@@ -14,12 +14,12 @@ MANAGERS = ADMINS
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': 'notejam.db',
-        'USER': '',
-        'PASSWORD': '',
-        'HOST': '',
-        'PORT': '',
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'notejamdbcluster',
+        'USER': 'admin',
+        'PASSWORD': '2jyLdYOkTJRSDdXFgmzv',
+        'HOST': 'notejamdbcluster.cluster-ct6ebwghx7pw.us-west-2.rds.amazonaws.com',
+        'PORT': '3306',
     }
 }
 

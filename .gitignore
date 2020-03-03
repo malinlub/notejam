@@ -56,3 +56,9 @@ bower_components
 **/.terraform/*
 *.tfstate*
 *.tfvars
+
+#MAC
+*.DS_Store
+
+#virtual env
+**notejam-app**
