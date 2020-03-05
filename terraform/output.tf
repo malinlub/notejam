@@ -4,5 +4,5 @@ output "ecr_image_url" {
 }
 
 output "alb_hostname" {
-  value = aws_alb.main.dns_name
+  value = "http://${aws_alb.main.dns_name}"
 }

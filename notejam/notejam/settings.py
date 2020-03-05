@@ -15,10 +15,10 @@ MANAGERS = ADMINS
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'notejamdbcluster',
-        'USER': 'admin',
-        'PASSWORD': '2jyLdYOkTJRSDdXFgmzv',
-        'HOST': 'notejamdbcluster.cluster-ct6ebwghx7pw.us-west-2.rds.amazonaws.com',
+        'NAME': 'notejam_db',
+        'USER': 'notejamuser',
+        'PASSWORD': 'Notejam.pass.123',
+        'HOST': os.environ['DB_HOST'],
         'PORT': '3306',
     },
     'sqlite': {

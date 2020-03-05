@@ -1,4 +1,4 @@
-# vars for docker build and push
+# vars for docker build and push to ECR
 variable "dockerfile_folder" {
   type        = string
   description = "This is the folder which contains the Dockerfile"
@@ -23,7 +23,21 @@ variable "ecr_repository_url" {
   default     = "827132735448.dkr.ecr.us-west-2.amazonaws.com/notejam-docker-app"
 }
 
-# vars for Fargate
+# vars for RDS Aurora
+variable "rds_db_pass" {
+    type        = string
+    description = "Aurora DB password"
+    default     = "Notejam.pass.123"
+}
+
+variable "rds_db_user" {
+    type        = string
+    description = "Aurora DB user"
+    default     = "notejamuser"
+}
+
+
+# vars for Fargate ECS 
 variable "az_count" {
   description = "Number of AZs to cover in a given AWS region"
   default     = "2"

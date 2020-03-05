@@ -3,24 +3,46 @@ provider "aws" {
   region  = var.aws_region
 }
 
-# Build Docker image and push to ECR from folder: ./example-service-directory
-module "ecr_docker_build" {
-  source = "github.com/onnimonni/terraform-ecr-docker-build-module"
-
-  # Absolute path into the service which needs to be build
-  dockerfile_folder = var.dockerfile_folder
-
-  # Tag for the builded Docker image (Defaults to 'latest')
-  docker_image_tag = var.docker_image_tag
+resource "local_file" "create_docker_file" {
+  filename = "../notejam/Dockerfile"
   
-  # The region which we will log into with aws-cli
-  aws_region = var.aws_region
+  content = <<EOF
+FROM python:2.7-alpine
+ENV PYTHONUNBUFFERED 1
+ENV DB_HOST=${aws_rds_cluster.notejam_rds_cluster.endpoint}
+RUN mkdir /notejam
+WORKDIR /notejam
+COPY requirements.txt /notejam/
+RUN apk update \
+    && apk add --no-cache --virtual .build-deps musl-dev gcc mariadb-dev \
+    && pip wheel -r requirements.txt --no-cache-dir --no-input \
+    && pip install -r requirements.txt \
+    && apk del .build-deps musl-dev gcc mariadb-dev \
+    && apk add --no-cache mariadb-connector-c-dev
+COPY . /notejam/
 
-  # ECR repository where we can push
-  ecr_repository_url = var.ecr_repository_url
+
+
+COPY ./start.sh /notejam/
+ENTRYPOINT ["/notejam/start.sh"]
+EOF
+
 }
 
-# Create infra based on Fargate ECS
+
+
+### Build Docker image and push to ECR from folder: 
+module "ecr_docker_build" {
+  source = "github.com/malinlub/terraform-ecr-docker-build-module"
+  dockerfile_folder = dirname(local_file.create_docker_file.filename)
+  docker_image_tag = var.docker_image_tag
+  aws_region = var.aws_region
+  ecr_repository_url = var.ecr_repository_url
+  
+  custom_depends_on = [local_file.create_docker_file.content]
+}
+
+### Create infra based on Fargate ECS
 # Fetch AZs in the current region
 data "aws_availability_zones" "available" {}
 
@@ -95,7 +117,7 @@ resource "aws_route_table_association" "private" {
 # ALB Security group
 # This is the group you need to edit if you want to restrict access to your application
 resource "aws_security_group" "lb" {
-  name        = "tf-ecs-alb"
+  name        = "notejam-ecs-alb"
   description = "controls access to the ALB"
   vpc_id      = aws_vpc.main.id
 
@@ -116,7 +138,7 @@ resource "aws_security_group" "lb" {
 
 # Traffic to the ECS Cluster should only come from the ALB
 resource "aws_security_group" "ecs_tasks" {
-  name        = "tf-ecs-tasks"
+  name        = "notejam-ecs-tasks"
   description = "allow inbound access from the ALB only"
   vpc_id      = aws_vpc.main.id
 
@@ -135,24 +157,31 @@ resource "aws_security_group" "ecs_tasks" {
   }
 }
 
+### ALB conf
+
+# Issue with returning tuple of subnet ids instead of list - conversion
 locals {                                                            
   subnet_ids_pub_list = tolist(aws_subnet.public.*.id)
   subnet_ids_pri_list = tolist(aws_subnet.private.*.id)             
 } 
 
-### ALB
+
 resource "aws_alb" "main" {
-  name            = "tf-ecs-chat"
+  name            = "notejam-fargate"
   subnets         = local.subnet_ids_pub_list
   security_groups = ["${aws_security_group.lb.id}"]
 }
 
 resource "aws_alb_target_group" "app" {
-  name        = "tf-ecs-chat"
+  name        = "notejam-targetgroup"
   port        = 80
   protocol    = "HTTP"
   vpc_id      = aws_vpc.main.id
   target_type = "ip"
+
+  depends_on = [
+    aws_alb.main
+  ]
 }
 
 # Redirect all traffic from the ALB to the target group
@@ -167,12 +196,76 @@ resource "aws_alb_listener" "front_end" {
   }
 }
 
-### ECS
+### RDS Aurora config
+
+# subnet group
+resource "aws_db_subnet_group" "aurora_db_subnet" {
+  name       = "notejam_db_subnet"
+  subnet_ids = local.subnet_ids_pri_list
+}
+
+# security group - allow only ECS Fargate task
+resource "aws_security_group" "rds_notejam" {
+  name   = "rds-notejam-sg"
+  vpc_id = aws_vpc.main.id
+
+  ingress {
+    from_port = "3306"
+    to_port   = "3306"
+    protocol  = "tcp"
+    self      = true
+  }
+  ingress {
+    from_port = "3306"
+    to_port   = "3306"
+    protocol  = "tcp"
+    security_groups = [
+        "${aws_security_group.ecs_tasks.id}"
+    ]
+  }
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = [
+        "0.0.0.0/0"
+        ]
+  }
+}
+
+resource "aws_rds_cluster" "notejam_rds_cluster" {
+  cluster_identifier         = "notejam-db-cluster"
+  engine                     = "aurora"
+  engine_mode                = "serverless"
+  storage_encrypted          = "false"
+  master_username            = var.rds_db_user
+  master_password            = var.rds_db_pass
+  database_name              = "notejam_db"
+  backup_retention_period    = "7"
+  preferred_backup_window    = "01:00-03:00"
+  deletion_protection        = "false"
+  enable_http_endpoint        = "true"
+
+  skip_final_snapshot        = true
+  db_subnet_group_name       = aws_db_subnet_group.aurora_db_subnet.name
+  
+  vpc_security_group_ids     = [ "${aws_security_group.rds_notejam.id}" ]
+
+  scaling_configuration {
+    min_capacity             = "2"
+    max_capacity             = "2"
+    auto_pause               = "true"
+    seconds_until_auto_pause = "300"
+  }
+}
+
+### ECS Fargate config
 
 resource "aws_ecs_cluster" "main" {
   name = "notejam-cluster"
 }
 
+# IAM role for ecs-task api 
 resource "aws_iam_role" "ecs_task_execution_role" {
   name = "ecsTaskExecutionRole"
 
@@ -184,7 +277,7 @@ resource "aws_iam_role" "ecs_task_execution_role" {
             "Action": "sts:AssumeRole",
             "Principal": {
             "Service": [
-                "ecs.amazonaws.com"
+                "ecs-tasks.amazonaws.com"
             ]
             },
             "Effect": "Allow",
@@ -195,11 +288,13 @@ resource "aws_iam_role" "ecs_task_execution_role" {
 EOF
 }
 
+#attach IAM policy
 resource "aws_iam_role_policy_attachment" "attach-policy" {
     role       = aws_iam_role.ecs_task_execution_role.name
     policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
+# ECS task definition
 resource "aws_ecs_task_definition" "app" {
   family                   = "app"
   network_mode             = "awsvpc"
@@ -225,10 +320,13 @@ resource "aws_ecs_task_definition" "app" {
   }
 ]
 DEFINITION
+
+  depends_on = [module.ecr_docker_build]
 }
 
+#ECS service config
 resource "aws_ecs_service" "main" {
-  name            = "tf-ecs-service"
+  name            = "notejam-service"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.app.arn
   desired_count   = var.app_count
@@ -246,6 +344,7 @@ resource "aws_ecs_service" "main" {
   }
 
   depends_on = [
+    aws_ecs_cluster.main,
     aws_alb_listener.front_end,
   ]
 }
