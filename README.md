@@ -1,8 +1,8 @@
 Assignment
 -
-Notejam is currently build as monolith containing built-in webserver and SQLite database. Your task is to redesign the
-architecture so it can meet business requirements on chosen public cloud platform
+
 ![](/docs/notejam-assignment.png)
+
 Business Requirements
 -
 - The Application must serve variable amount of traffic. Most users are active during business hours. During big
