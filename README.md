@@ -1,30 +1,33 @@
-#Notejam Django app built on @AWS
-
-##Getting started
-
-###Build aws infra
-    
+Notejam Django app built on Amazon Web Services
+=
+Getting started
+=
+Build AWS infrastructure:
+-    
 - `cd notejam/terraform` 
 - `terraform init`
+- `terraform plan` (see building resources)
 - `terraform apply`
 
-###Prerequisites:
+Prerequisites:
+-
 - Install [terraform](https://learn.hashicorp.com/terraform/getting-started/install.html) 
 - Install [aws cli](https://aws.amazon.com/cli/)
 - Configure your aws profile by running `aws configure`
 - Change variables.tf file with required values
 - Install Docker machine - this PoC use local docker build based on generated Dockerfile
 
-
-#Proof of Concept solution
-
-##Web URL
+Proof of Concept solution
+=
+Web URL
+==
 - Web site url: You will see whole path in terraform output console
 
 - Example: alb_hostname = http://nj-lb-1017956091.us-west-2.elb.amazonaws.com
 
-##Source code:
-- Github: https://git.toptal.com/malinlub/notejam
+Source code:
+-
+- Github: https://githun.com/malinlub/notejam
 
 - IaC solution is provisioned on AWS. 
 - CI/CD partialy hacked by local Docker build and push to ECR by terraform
@@ -33,19 +36,19 @@
 
 
 
-##Infrastructure
+Infrastructure
+==
 ![](/docs/notejam-infrastructure.png)
 
-
-
-###Network
+Network
+--
 - VPC per environment
 - x subnets (configurable in variables - different AZs) for every service (ECS, RDS, ALB, NatGW)
 - all services are in private subnets except public facing services (ALB, NatGW)
 - security groups
 
-###Application
-
+Application
+--
 - ECS
     - Django application is running in a containerized environment on AWS ECS in Fargate mode
     - Port 8000 exposed only to ALB
@@ -68,37 +71,43 @@
 - Route53
     - for PoC not created (access to Website via exposed ALB DNS)
 
-###Logging and monitoring
+Logging and monitoring
+--
 - RDS and ECS stream log into central CloudWatch log groups
     
-##CI/CD Pipeline
+CI/CD Pipeline
+==
 ![](/docs/notejam-cicd.png)
 
-AWS CodePipeline is used as a CI/CD tool.
+- AWS CodePipeline is used as a CI/CD tool.
 - TODO: create CI/CD by terraform
 
-###Suggested CI/CD Pipeline:
-####STAGE "SRC":
+Suggested CI/CD Pipeline:
+--
+STAGE "SRC":
+---
 - When new code is pushed to GitHub/CodeCommit repository CodePipeline trigger next stages
 
-####STAGE "BUILD":
+STAGE "BUILD":
+---
 - Dockerize app, build Docker image and upload to ECR
 - If DB needs update, perform DB update
 - Deploy Docker image to ECS "BUILD" environment
 - Run Unit tests
 
-####STAGE "STAGING":
+STAGE "STAGING":
+---
 - Deploy Docker image to ECS "STAGING" environment
 - Run another tests (Integration, UI, Smoke, Performance, ...) 
 
-####STAGE "PRODUCTION":
+STAGE "PRODUCTION":
+---
 - Managed manual trigger of Deployment to "PROD" environment
 - Deploy Docker image to ECS "PROD" environment
 
-##Folder structure
+Folder structure
+=
 Infrastructure as Code : `terraform/`
-
 Documentation: `docs/`
-
 Django application: `notejam/`
 
