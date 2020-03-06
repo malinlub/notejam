@@ -107,7 +107,7 @@ STAGE "PRODUCTION":
 
 Folder structure
 =
-Infrastructure as Code : `terraform/`
-Documentation: `docs/`
-Django application: `notejam/`
+- Infrastructure as Code : `terraform/`
+- Documentation: `docs/`
+- Django application: `notejam/`
 
