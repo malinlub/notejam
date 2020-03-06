@@ -1,104 +1,103 @@
-# Notejam Django app @AWS
+# Notejam Django app built on @AWS
 
 ## Getting started
 
-### Spin up the environment
+### build aws infra
     
-1. `cd iac/`
-2. `terraform workspace new _name_of_git_branch_` 
-3. `terraform init`
-4. `terraform apply`
+- `cd notejam/terraform` 
+- `terraform init`
+- `terraform apply`
 
 Prerequisites:
-- Install [terraform](https://learn.hashicorp.com/terraform/getting-started/install.html) >= v0.13 
+- Install [terraform](https://learn.hashicorp.com/terraform/getting-started/install.html) 
 - Install [aws cli](https://aws.amazon.com/cli/)
-- Configure `notejam` aws profile by running `aws configure --profile notejam`
-- Fill `iac/*.tfvars` files with desired values
-- Acquire Gitlab token with code pull rights
+- Configure your aws profile by running `aws configure`
+- Change variables.tf file with required values
+- Install Docker machine - this PoC use local docker build based on generated Dockerfile
 
 
 # Solution
 
-## Basic info
-Web site url, e.g. for dev environment: https://dev.notejam.nedim.online
+## Web URL
+Web site url: You will see whole path in terraform output console
+Example: alb_hostname = http://nj-lb-1017956091.us-west-2.elb.amazonaws.com
 
 Source code:
-- Toptal Gitlab: https://git.toptal.com/eluttner/nedim.laletovic
-- Gitlab: https://gitlab.com/nediml/notejam
-Note that the CodePipeline triggers are configured to work with the repository at Gitlab.com due to inability of configuring webhooks on Toptal Gitlab.
+- Github: https://git.toptal.com/malinlub/notejam
 
-**Note**: Complete solution is provisioned on AWS, from CI/CD to the hosting of the actual app. Terraform is used as IaC tool. 
+- IaC solution is provisioned on AWS. 
+- CI/CD partialy hacked by local Docker build and push to ECR by terraform
+
+- TODO: Create CI/CD solution as described architecture design. Terraform should be used as IaC tool. 
 
 
 
 ## Infrastructure
-![](/docs/notejam-infra.png)
+![](/docs/notejam-infrastructure.png)
 
 
-**Note**: **All important infrastructural settings are configurable via terraform variables (.tfvars files in iac/ directory)**. This allows customization per environment and enables cost savings due to the fact that provisioning of the resources is being done as per actual need.
 
 ### Network setup
-- one VPC per environment
-- two subnets (different AZ) for every service (ecs, rds, lb etc.)
-- all services are in private subnets except public facing services (lb, natgw)
-- security groups are configured keeping in mind least privilege concept
+- VPC per environment
+- x subnets (configurable in variables - different AZs) for every service (ECS, RDS, ALB, NatGW)
+- all services are in private subnets except public facing services (ALB, NatGW)
+- security groups
 
 ### Application hosting
 
 - ECS
     - Django application is running in a containerized environment on AWS ECS in Fargate mode
-    - Auto scaling configured (CPU metric)
     - Port 8000 exposed only to ALB
+    - ECS allows connection only from ALB
+
+    - TODO: Make Autoscaling rules (currently 2 desired Tasks)
     
 - ALB
-    - Application load balancer is sitting in front of the ECS 
-    - ALB listener expose ports 80 and 443 exposed to the public
-    - Valid SSL certificate provisioned and SSL termination configured on ALB
-    - HTTP to HTTPS redirect configured on ALB
+    - Application load balancer in front of the ECS 
+    - ALB listener expose port 80 to the public
+    - HTTP forward 80 -> configured on ALB
 
 - RDS
-    - RDS Serverless is being used
-    - mysql engine
-    - 3306 port exposed only to ECS Fargate services
-    - Autoscaling, both, of compute and storage configured
-    - Backup configured
-    - Storage encryption enabled
+    - RDS engine Aurora in Serverless engine mode
+    - 3306 port exposed only to ECS Fargate tasks
+    - Autoscaling configuration hardcoded (TODO: add to variables for configuration, currently min:2, max:2, autopause:true)
+    - Backup disable for PoC
+    - Storage encryption disabled for PoC
 
--  DNS
-    - Public DNS zone configured: `nedim.online`
-    - Depending on the environment dns records (subdomains) are being created automatically e.g. `dev.notejam.nedim.online`
+- Route53
+    - for PoC not created (access to Website via exposed ALB DNS)
 
 ### Logging and monitoring
-- All services (ECS, RDS, CodePipeline, CodeBuild etc.) are pushing their logs to the centralized logging system (CloudWatch)
-- Performance and health monitoring can be done via Dashboards of each service (e.g. ECS, ALB, RDS etc.)
-
+- RDS and ECS stream log into central CloudWatch log groups
     
 ## CI/CD Pipeline
 ![](/docs/notejam-cicd.png)
 
 AWS CodePipeline is used as a CI/CD tool.
-CI/CD pipeline is configured to run in case of the push event on a specific branch (e.g. dev, qa) of the GitLab repository. 
+- TODO: create CI/CD by terraform
 
-When new code is pushed to the repo Pipeline will first run Unit tests to perform validation, after which will build, dockerize and push the application to the ECR.
+###Suggested CI/CD Pipeline:
+####STAGE "SRC":
+- When new code is pushed to GitHub/CodeCommit repository CodePipeline trigger next stages
 
-After successful build, database update is being performed.
-In case DB update passed without errors application will be deployed to ECS (rolling update).
+####STAGE "BUILD":
+- Dockerize app, build Docker image and upload to ECR
+- If DB needs update, perform DB update
+- Deploy Docker image to ECS "BUILD" environment
+- Run Unit tests
 
-All build logs are pushed to the centralized logging system (CloudWatch).
+####STAGE "STAGING":
+- Deploy Docker image to ECS "STAGING" environment
+- Run another tests (Integration, UI, Smoke, Performance, ...) 
 
-Sensitive information is stored in SSM Parameter store as SecureString.
+####STAGE "PRODUCTION":
+- Managed manual trigger of Deployment to "PROD" environment
+- Deploy Docker image to ECS "PROD" environment
 
-**Note**: Since CodePipeline does not natively support pulling the code from Gitlab, solution recommended by AWS was implemented: https://aws.amazon.com/quickstart/architecture/git-to-s3-using-webhooks/
-This solutions is completely automated with Terraform/CloudFormation, no user input, other the token for accessing the Gitlab repository, is required.
+## Folder structure
+Infrastructure as Code : `terraform/`
 
-## Repository layout
-CI/CD related files: `cicd/`
+Documentaion: `docs/`
 
-IaC related files: `iac/`
+Django application: `notejam/`
 
-Documentation and diagrams: `docs/`
-
-Django application files that were modified:
-
-- `django/requirements.txt` added gunicorn, mysqlclient etc.
-- `django/notejam/notejam/settings.py` modified db config to support mysql
