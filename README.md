@@ -1,3 +1,37 @@
+Assignment
+-
+Notejam is currently build as monolith containing built-in webserver and SQLite database. Your task is to redesign the
+architecture so it can meet business requirements on chosen public cloud platform
+![](/docs/notejam-assignment.png)
+Business Requirements
+-
+- The Application must serve variable amount of traffic. Most users are active during business hours. During big
+events and conferences the traffic could be 4 times more than typical.
+- The Customer takes guarantee to preserve your notes up to 3 years and recover it if needed.
+- The Customer ensures continuity in service in case of datacenter failures.
+- The Service must be capable of being migrated to any regions supported by the cloud provider in case of
+emergency.
+- The Customer is planning to have more than 100 developers to work in this project who want to roll out multiple
+deployments a day without interruption / downtime.
+- The Customer wants to provision separated environments to support their development process for development,
+testing, production in the near future.
+- The Customer wants to see relevant metrics and logs from the infrastructure for quality assurance and security
+purposes.
+
+Architecture decisions:
+-
+- Split monolith to multi-layer architecture where isolated/decoupled components/tiers can be managed by different teams of specialists and secured from public access and another network parts. ALB(internet facing) -> ECS(private subnet) -> RDS(private subnet)
+- Due to variable amount of traffic, chosen serverless components with autoscale options for Web app and DB tier for spreading perf load and dont waste idle resources. ECS(Fargate), RDS Cluster(Aurora serverless)
+- Build High available solution for service continuity. Minimum 2 loadbalanced Availability zones. ALB(application lb), Private subnet per each service per AZ.
+- Application in CI/CD pipeline dockerized and DB backup for migration DR scenarios.
+- IaC configurable to use also for Development environments.
+- Central logging of seervices in CloudWatch logs.
+
+Notes: 
+- Due to short time, missing CI/CD Pipeline terraform build. 
+(Tricky mini CI/CD for Dockerfile generation + local Docker build then Push docker image to ECR executed during building of AWS infrastructure)
+- TODO: Generalize variables more in terraform, separate components for better readibility. 
+
 Notejam Django app built on Amazon Web Services
 =
 Getting started
