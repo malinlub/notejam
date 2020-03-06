@@ -1,14 +1,14 @@
-# Notejam Django app built on @AWS
+#Notejam Django app built on @AWS
 
-## Getting started
+##Getting started
 
-### build aws infra
+###Build aws infra
     
 - `cd notejam/terraform` 
 - `terraform init`
 - `terraform apply`
 
-Prerequisites:
+###Prerequisites:
 - Install [terraform](https://learn.hashicorp.com/terraform/getting-started/install.html) 
 - Install [aws cli](https://aws.amazon.com/cli/)
 - Configure your aws profile by running `aws configure`
@@ -16,13 +16,14 @@ Prerequisites:
 - Install Docker machine - this PoC use local docker build based on generated Dockerfile
 
 
-# Solution
+#Proof of Concept solution
 
-## Web URL
-Web site url: You will see whole path in terraform output console
-Example: alb_hostname = http://nj-lb-1017956091.us-west-2.elb.amazonaws.com
+##Web URL
+- Web site url: You will see whole path in terraform output console
 
-Source code:
+- Example: alb_hostname = http://nj-lb-1017956091.us-west-2.elb.amazonaws.com
+
+##Source code:
 - Github: https://git.toptal.com/malinlub/notejam
 
 - IaC solution is provisioned on AWS. 
@@ -32,18 +33,18 @@ Source code:
 
 
 
-## Infrastructure
+##Infrastructure
 ![](/docs/notejam-infrastructure.png)
 
 
 
-### Network setup
+###Network
 - VPC per environment
 - x subnets (configurable in variables - different AZs) for every service (ECS, RDS, ALB, NatGW)
 - all services are in private subnets except public facing services (ALB, NatGW)
 - security groups
 
-### Application hosting
+###Application
 
 - ECS
     - Django application is running in a containerized environment on AWS ECS in Fargate mode
@@ -67,10 +68,10 @@ Source code:
 - Route53
     - for PoC not created (access to Website via exposed ALB DNS)
 
-### Logging and monitoring
+###Logging and monitoring
 - RDS and ECS stream log into central CloudWatch log groups
     
-## CI/CD Pipeline
+##CI/CD Pipeline
 ![](/docs/notejam-cicd.png)
 
 AWS CodePipeline is used as a CI/CD tool.
@@ -94,10 +95,10 @@ AWS CodePipeline is used as a CI/CD tool.
 - Managed manual trigger of Deployment to "PROD" environment
 - Deploy Docker image to ECS "PROD" environment
 
-## Folder structure
+##Folder structure
 Infrastructure as Code : `terraform/`
 
-Documentaion: `docs/`
+Documentation: `docs/`
 
 Django application: `notejam/`
 
