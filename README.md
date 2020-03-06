@@ -103,7 +103,7 @@ STAGE "STAGING":
 STAGE "PRODUCTION":
 ---
 - Managed manual trigger of Deployment to "PROD" environment
-- Deploy Docker image to ECS "PROD" environment
+- Deploy Docker image to ECS "PROD" environment (rolling update)
 
 Folder structure
 =
