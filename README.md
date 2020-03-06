@@ -27,7 +27,7 @@ Web URL
 
 Source code:
 -
-- Github: https://githun.com/malinlub/notejam
+- Github: https://github.com/malinlub/notejam
 
 - IaC solution is provisioned on AWS. 
 - CI/CD partialy hacked by local Docker build and push to ECR by terraform
