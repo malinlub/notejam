@@ -1,143 +1,104 @@
-*******
-Notejam
-*******
+# Notejam Django app @AWS
 
-**The easy way to learn web frameworks**
+## Getting started
 
-Do you know framework X and want to try framework Y?
-The easy way to start with a new framework is to compare it with frameworks you already know.
-The goal of the project is to help developers easily learn new frameworks by examples.
+### Spin up the environment
+    
+1. `cd iac/`
+2. `terraform workspace new _name_of_git_branch_` 
+3. `terraform init`
+4. `terraform apply`
 
-Notejam is a unified sample web application (more than just "Hello World") implemented using different server-side frameworks.
-Currently python, php, ruby and javascript frameworks are supported.
-
-
-====================
-Supported frameworks
-====================
-
-**Python**
+Prerequisites:
+- Install [terraform](https://learn.hashicorp.com/terraform/getting-started/install.html) >= v0.13 
+- Install [aws cli](https://aws.amazon.com/cli/)
+- Configure `notejam` aws profile by running `aws configure --profile notejam`
+- Fill `iac/*.tfvars` files with desired values
+- Acquire Gitlab token with code pull rights
 
 
-* `Django <https://github.com/komarserjio/notejam/tree/master/django>`_
-* `Flask <https://github.com/komarserjio/notejam/tree/master/flask>`_
-* `Pyramid <https://github.com/komarserjio/notejam/tree/master/pyramid>`_
+# Solution
 
-**PHP**
+## Basic info
+Web site url, e.g. for dev environment: https://dev.notejam.nedim.online
 
-* `Laravel <https://github.com/komarserjio/notejam/tree/master/laravel>`_
-* `Yii <https://github.com/komarserjio/notejam/tree/master/yii>`_
-* `CakePHP <https://github.com/komarserjio/notejam/tree/master/cakephp>`_
-* `Nette <https://github.com/komarserjio/notejam/tree/master/nette/native_db>`_ / `Nette + Doctrine <https://github.com/komarserjio/notejam/tree/master/nette/doctrine>`_
-* `Symfony <https://github.com/komarserjio/notejam/tree/master/symfony>`_
+Source code:
+- Toptal Gitlab: https://git.toptal.com/eluttner/nedim.laletovic
+- Gitlab: https://gitlab.com/nediml/notejam
+Note that the CodePipeline triggers are configured to work with the repository at Gitlab.com due to inability of configuring webhooks on Toptal Gitlab.
 
-**Ruby**
-
-* `Padrino <https://github.com/komarserjio/notejam/tree/master/padrino>`_
-* `Ruby on Rails <https://github.com/komarserjio/notejam/tree/master/rubyonrails>`_
-
-**Java**
-
-* `Spring <https://github.com/komarserjio/notejam/tree/master/spring>`_
-
-**Javascript (node.js)**
-
-* `Express <https://github.com/komarserjio/notejam/tree/master/express>`_
+**Note**: Complete solution is provisioned on AWS, from CI/CD to the hosting of the actual app. Terraform is used as IaC tool. 
 
 
-In progress
------------
 
-**Scala**
-
-* Play
-
-**Clojure**
-
-* Compojure
-
-... and more frameworks are coming soon.
-
-====================
-Application overview
-====================
-
-Notejam is a web application which offers user to sign up/in/out and create/view/edit/delete notes.
-Notes are grouped in pads.
-
-**Screenshots**
-
-.. image:: https://github.com/komarserjio/notejam/blob/master/html/screenshots/1p.png
-    :alt: Sign in
-    :width: 400
-    :align: center
-    :target: https://github.com/komarserjio/notejam/tree/master/screenshots.rst
-
-.. image:: https://github.com/komarserjio/notejam/blob/master/html/screenshots/2p.png
-    :alt: All notes
-    :width: 400
-    :align: center
-    :target: https://github.com/komarserjio/notejam/tree/master/screenshots.rst
-
-.. image:: https://github.com/komarserjio/notejam/blob/master/html/screenshots/3p.png
-    :alt: New note
-    :width: 400
-    :align: center
-    :target: https://github.com/komarserjio/notejam/tree/master/screenshots.rst
-
-See `more screenshots <https://github.com/komarserjio/notejam/tree/master/screenshots.rst>`_
-for look and feel.
-
-See `detailed overview <https://github.com/komarserjio/notejam/blob/master/contribute.rst#application-requirements>`_.
-
-Typical application covers following topics:
-
-* Request/Response handling
-* Routing
-* Templates
-* Configuration
-* Authentication
-* Forms
-* Error handling
-* Database/ORM
-* Mailing
-* Functional/unit testing
-
-=============
-How to launch
-=============
-
-All implementations are SQLite based and quickly launchable by built-in web servers.
-Each implementation has instruction describing easy steps to install environment, launch and run tests.
-
-============
-Contribution
-============
-
-Contribution is more than welcome!
-Contribute improvements to existing applications to help them follow best practices
-or provide new implementation for unsupported framework.
+## Infrastructure
+![](/docs/notejam-infra.png)
 
 
-**Do you want to improve one of the existing implementations?**
+**Note**: **All important infrastructural settings are configurable via terraform variables (.tfvars files in iac/ directory)**. This allows customization per environment and enables cost savings due to the fact that provisioning of the resources is being done as per actual need.
 
-Each implementation has its own README with contribution details.
+### Network setup
+- one VPC per environment
+- two subnets (different AZ) for every service (ecs, rds, lb etc.)
+- all services are in private subnets except public facing services (lb, natgw)
+- security groups are configured keeping in mind least privilege concept
 
-**Do you want to add new framework?**
+### Application hosting
 
-Read `contribution guide <https://github.com/komarserjio/notejam/blob/master/contribute.rst>`_ for details.
+- ECS
+    - Django application is running in a containerized environment on AWS ECS in Fargate mode
+    - Auto scaling configured (CPU metric)
+    - Port 8000 exposed only to ALB
+    
+- ALB
+    - Application load balancer is sitting in front of the ECS 
+    - ALB listener expose ports 80 and 443 exposed to the public
+    - Valid SSL certificate provisioned and SSL termination configured on ALB
+    - HTTP to HTTPS redirect configured on ALB
 
-========
-Contacts
-========
+- RDS
+    - RDS Serverless is being used
+    - mysql engine
+    - 3306 port exposed only to ECS Fargate services
+    - Autoscaling, both, of compute and storage configured
+    - Backup configured
+    - Storage encryption enabled
 
-* Twitter: `@komarserjio <https://twitter.com/komarserjio>`_
-* Email: komarserjio <at> gmail.com
+-  DNS
+    - Public DNS zone configured: `nedim.online`
+    - Depending on the environment dns records (subdomains) are being created automatically e.g. `dev.notejam.nedim.online`
 
-=======
-License
-=======
+### Logging and monitoring
+- All services (ECS, RDS, CodePipeline, CodeBuild etc.) are pushing their logs to the centralized logging system (CloudWatch)
+- Performance and health monitoring can be done via Dashboards of each service (e.g. ECS, ALB, RDS etc.)
 
-MIT © Serhii Komar.
+    
+## CI/CD Pipeline
+![](/docs/notejam-cicd.png)
 
-See `license <https://github.com/komarserjio/notejam/blob/master/license.rst>`_.
+AWS CodePipeline is used as a CI/CD tool.
+CI/CD pipeline is configured to run in case of the push event on a specific branch (e.g. dev, qa) of the GitLab repository. 
+
+When new code is pushed to the repo Pipeline will first run Unit tests to perform validation, after which will build, dockerize and push the application to the ECR.
+
+After successful build, database update is being performed.
+In case DB update passed without errors application will be deployed to ECS (rolling update).
+
+All build logs are pushed to the centralized logging system (CloudWatch).
+
+Sensitive information is stored in SSM Parameter store as SecureString.
+
+**Note**: Since CodePipeline does not natively support pulling the code from Gitlab, solution recommended by AWS was implemented: https://aws.amazon.com/quickstart/architecture/git-to-s3-using-webhooks/
+This solutions is completely automated with Terraform/CloudFormation, no user input, other the token for accessing the Gitlab repository, is required.
+
+## Repository layout
+CI/CD related files: `cicd/`
+
+IaC related files: `iac/`
+
+Documentation and diagrams: `docs/`
+
+Django application files that were modified:
+
+- `django/requirements.txt` added gunicorn, mysqlclient etc.
+- `django/notejam/notejam/settings.py` modified db config to support mysql
