@@ -144,3 +144,4 @@ Folder structure
 - Infrastructure as Code : `terraform/`
 - Django application: `notejam/`
 
+Test sonarcloud
